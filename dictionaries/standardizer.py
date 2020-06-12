@@ -31,5 +31,18 @@ print(usaddress.parse(test_input_a))
 # SubaddressIdentifier
 # BuildingName?
 
+# built for usaddress.parse, not usaddress.tag
+# very preliminary, can be improved; let's talk about if we should parse replacements outside of specific labels
+def clean(parsed_address, master_dict):
+    return [(abbreviate(word, master_dict.get(label)), label) for (word, label) in parsed_address]
+
+label_dict = {
+    'StreetNamePostType' : STREET_NAME_POST_ABBREVIATIONS,
+    'StreetNamePreDirectional' : DIRECTIONAL_ABBREVIATIONS,
+    'StreetNamePostDirectional' : DIRECTIONAL_ABBREVIATIONS,
+    'StateName' : STATE_ABBREVIATIONS    
+}
+# not sure what category street name substitutions fall under
+
 print(usaddress.parse("1214 Georgetown Way"))
 print(abbreviate('ALASKA', STATE_ABBREVIATIONS))
