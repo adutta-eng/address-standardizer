@@ -712,5 +712,17 @@ DIRECTIONAL_ABBREVIATIONS = {
     'NORTHEAST': 'NE',
     'NORTHWEST': 'NW',
     'SOUTHEAST': 'SE',
-    'SOUTHWEST': 'SW'
+    'SOUTHWEST': 'SW',
+    "NORTE": "N",
+    "NO": "N",
+    "NORESTE": "NE",
+    "NOROESTE": "NW",
+    "SUR": "S",
+    "SO": "S",
+    "SURESTE": "SE",
+    "SUROESTE": "SW",
+    "ESTE": "E",
+    "EA": "E",
+    "OESTE": "W",
+    "WE": "W"
 }
