@@ -726,3 +726,32 @@ DIRECTIONAL_ABBREVIATIONS = {
     "OESTE": "W",
     "WE": "W"
 }
+
+#From USPS "C2 Secondary Unit Designators"
+#Subaddress Type/WSDESC1 (?)
+OCCUPANCY_TYPE_ABBREVIATIONS = {
+    'APARTMENT': 'APT',
+    'BUILDING': 'BLDG',
+    'BASEMENT': 'BSMT',
+    'DEPARTMENT': 'DEPT',
+    'FLOOR': 'FL',
+    'FRONT': 'FRNT',
+    'HANGER': 'HNGR',
+    'KEY': 'KEY',
+    'LOBBY': 'LBBY',
+    'LOT': 'LOT',
+    'LOWER': 'LOWR',
+    'OFFICE': 'OFC',
+    'PENTHOUSE': 'PH',
+    'PIER': 'PIER',
+    'REAR': 'REAR',
+    'ROOM': 'RM',
+    'SIDE': 'SIDE',
+    'SLIP': 'SLIP',
+    'SPACE': 'SPC',
+    'STOP': 'STOP',
+    'SUITE': 'STE',
+    'TRAILER': 'TRLR',
+    'UNIT': 'UNIT',
+    'UPPER': 'UPPER'
+}

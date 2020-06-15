@@ -3,7 +3,8 @@ from constants import (
     DIRECTIONAL_ABBREVIATIONS,
     STATE_ABBREVIATIONS,
     STREET_NAME_ABBREVIATIONS,
-    STREET_NAME_POST_ABBREVIATIONS
+    STREET_NAME_POST_ABBREVIATIONS,
+    OCCUPANCY_TYPE_ABBREVIATIONS
 )
 
 ## Checks if a potential key is contained in a dictionary 
@@ -33,6 +34,7 @@ print(usaddress.parse(test_input_a))
 
 # built for usaddress.parse, not usaddress.tag
 # very preliminary, can be improved; let's talk about if we should parse replacements outside of specific labels
+# applies abbreviate to each word parsed by usaddress
 def clean(parsed_address, master_dict):
     return [(abbreviate(word, master_dict.get(label)), label) for (word, label) in parsed_address]
 
@@ -40,7 +42,8 @@ label_dict = {
     'StreetNamePostType' : STREET_NAME_POST_ABBREVIATIONS,
     'StreetNamePreDirectional' : DIRECTIONAL_ABBREVIATIONS,
     'StreetNamePostDirectional' : DIRECTIONAL_ABBREVIATIONS,
-    'StateName' : STATE_ABBREVIATIONS    
+    'StateName' : STATE_ABBREVIATIONS,
+    'SubaddressType' : OCCUPANCY_TYPE_ABBREVIATIONS
 }
 # not sure what category street name substitutions fall under
 
