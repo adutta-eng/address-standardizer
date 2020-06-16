@@ -777,7 +777,7 @@ EXTENSION_CODES = {
     "OLD": 7,
     "SPUR": 8
 }
-}
+
 
 OCCUPANCY_TYPE_CODES = {
     "ALY": 11,
