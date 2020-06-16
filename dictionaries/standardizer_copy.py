@@ -1,4 +1,5 @@
 import usaddress
+import string
 
 from constants import (
     DIRECTIONAL_ABBREVIATIONS,
@@ -60,7 +61,7 @@ def standardize(unparsed_address):
         # category_pair contains a part of an address an its corresponding category
         # for example (NORTH, StreetNamePreDirectional)
         category_pair = parsed_address[index]
-        word = category_pair[0]
+        word = category_pair[0].translate(str.maketrans('', '', string.punctuation)) #strips punctuation
         address_category = category_pair[1]
         
         # Checks if there is a standardization dictionary for a particular category
@@ -70,37 +71,17 @@ def standardize(unparsed_address):
             for key in address_category_mappings.keys():
                 # If the input word matches one of the keys in the abbreviation dictionary
                 # We standardize by converting to the preferred abbreviation
-                if key in word:
+                if key == word:
                     parsed_address[index] = update_tuple(address_category_mappings.get(key), category_pair)
     return(parsed_address)
 
 print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
-
-
-    # for (word, address_category) in parsed_address:
-    #     if address_category in label_dict.keys():
-    #         print(word)
-    #         print(address_category)
-    #         # Dictionary mapping for all possible misspellings of the category to their preferred abbreviations
-    #         address_category_mappings = label_dict.get(address_category)
-    #         for key in address_category_mappings.keys():
-    #             # print(key)
-    #             if key in word:
-    #                 # parsed_address.pop(word)
-    #                 print(type(parsed_address[0]))
-    #                 print(type(parsed_address))
-    #                 print(update_tuple(address_category_mappings.get(key), (word, address_category)))
-                    # print("original word = " + word)
-                    # word = address_category_mappings.get(key)
-                    # parsed_address[word] = address_category_mappings.get(key)
-                    # print("replaced word = " + word)
-        
-        # if label in label_dict.keys():
-        #     corresponding_dict = label_dict.get(label)
-        #     print(str(corresponding_dict.get(word)))
-            # print(str(label_dict.get(label).keys()))
-            # print("type aka label_dict = " + label_dict.get(label))
-            # print("word = " + word)
-            # print ("matching key in label_dict = " + label_dict.get(label).get(word))
-        # if label in label_dict.keys and word in label_dict.get(label).keys:
-        #     print(word + " " + label + " " + label_dict.get(label).get(word))
+print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
+print(standardize("Center Ridge, AR 72027"))
+print(standardize("9878 North Metro Parkway East, Phoenix, AZ 85051"))
+print(standardize("2896 Fairfax Street, Denver, CO 80207"))
+print(standardize("Mesa Mall, Grand Junction, CO 81501"))
+print(standardize("168 Hillside Avenue, Hartford, CT 06106"))
+print(standardize("1025 Vermont Avenue Northwest, Washington, DC 20005"))
+print(standardize("697 North Dupont Boulevard, Milford, DE 19963"))
+print(standardize("1915 North Republic De Cuba Avenue, Tampa, FL 33602"))
