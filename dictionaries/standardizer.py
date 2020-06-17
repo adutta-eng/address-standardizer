@@ -124,15 +124,11 @@ def standardize(address):
         # confirm label is substitutable
         if label in code_dict and label in code_label_dict:
             # confirm substitution is known
-            if x in code_dict[label]:
+            if word in code_dict[label]:
                 # append to the end of the list
                 substituted.append((code_dict[label].get(word), code_label_dict[label]))
     return substituted
 
-
-print(usaddress.parse("1214 Georgetown Way"))
-print(abbreviate('ALASKA', STATE_ABBREVIATIONS))
-print(clean(usaddress.parse("1214 Georgetown Way"), label_dict))
 print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
 print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
 print(standardize("Center Ridge, AR 72027"))
