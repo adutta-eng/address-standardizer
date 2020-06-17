@@ -10,6 +10,8 @@ from constants import (
     DIRECTION_CODES
 )
 
+
+
 def abbreviate(potential_key, dictionary):
     if potential_key in dictionary:
         return dictionary.get(potential_key)
@@ -110,9 +112,15 @@ code_label_dict = {
 # }
 
 # input: address, any given address
+#        code, which can be "a" (append), "r" (replace), or "n" (none)
+#        output, which can be "l" (list) or "d" (dictionary)
 # output: a list formatted like that of usaddress.parse, but with certain key words abbreviated and standardized
 # String -> List[(word: String, label: String)]
-def standardize(address):
+def standardize(address, code = "a", output = "l"):
+    if code not in ["a", "r", "n"]:
+        raise InputError("code must be a (append), r (replace), or n (none)")
+    if output not in ["l", "d"]:
+        raise InputError("output must be l (list) or d (dict)")
     # make case insensitive, apply usaddress parsing
     parsed = usaddress.parse(address.upper())
     # remove punctuation from results (not removed beforehand, as punctuation can affect parsing)
@@ -120,15 +128,40 @@ def standardize(address):
     # apply replacements
     substituted = clean(stripped, label_dict)
     # add codes for directions, extensions, etc.
-    for (word, label) in substituted:
-        # confirm label is substitutable
-        if label in code_dict and label in code_label_dict:
-            # confirm substitution is known
-            if word in code_dict[label]:
-                # append to the end of the list
-                substituted.append((code_dict[label].get(word), code_label_dict[label]))
-    return substituted
+    if code != "n":
+        if code == "a":
+            for (word, label) in substituted:
+                # confirm label is substitutable
+                if label in code_dict and label in code_label_dict:
+                    # confirm substitution is known
+                    if word in code_dict[label]:
+                        # append to the end of the list
+                        substituted.append((code_dict[label].get(word), code_label_dict[label]))
+        if code == "r":
+            for index in range(len(substituted)):
+                # confirm label is substitutable
+                word, label = substituted[index]
+                if label in code_dict and label in code_label_dict:
+                    # confirm substitution is known
+                    if word in code_dict[label]:            
+                        substituted[index] = (code_dict[label].get(word), code_label_dict[label])
+    if output == 'd':
+        result = {}
+        for (word, label) in substituted:
+            if label in result:
+                result[label] = result[label] + " " + word
+            else:
+                result[label] = word
+        return result
+    else:
+        return substituted
 
+# fidCompare: Name, Zip, PreType, SufType, ExtType, PreDir, SufDir
+# -> StreetName, Zip, StreetNamePreType, StreetNamePostType, StreetNamePreDirectional, StreetNamePostDirectional
+# function: strip needed values; find defaults from amgScore.py
+		
+		
+		
 print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
 print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
 print(standardize("Center Ridge, AR 72027"))
