@@ -66,8 +66,8 @@ code_dict = {
 code_label_dict = {
     'StreetNamePostDirectional' : 'PostDirectionalCode',
     'StreetNamePreDirectional' : 'PreDirectionalCode',
-    'StreetNamePostType' : 'SreetPostTypeCode',
-    'StreetNamePreType' : 'SreetPreTypeCode'
+    'StreetNamePostType' : 'SteetPostTypeCode',
+    'StreetNamePreType' : 'SteetPreTypeCode'
 }
 
 
@@ -113,12 +113,14 @@ code_label_dict = {
 #     'NotAddress',
 # }
 
-# input: address, any given address
-#        code, which can be "a" (append), "r" (replace), or "n" (none)
-#        output, which can be "l" (list) or "d" (dictionary)
-# output: a list formatted like that of usaddress.parse, but with certain key words abbreviated and standardized
-# String -> List[(word: String, label: String)]
-def standardize(address, code = "a", output = "l"):
+"""
+input: address, any given address
+       code, which can be "a" (append), "r" (replace), or "n" (none)
+       output, which can be "l" (list) or "d" (dictionary)
+output: a list formatted like that of usaddress.parse, but with certain key words abbreviated and standardized
+String -> List[(word: String, label: String)] OR Dict[label, word]
+"""
+def standardize(address, code = "a", output = "d"):
     if code not in ["a", "r", "n"]:
         raise InputError("code must be a (append), r (replace), or n (none)")
     if output not in ["l", "d"]:
@@ -158,46 +160,56 @@ def standardize(address, code = "a", output = "l"):
     else:
         return substituted
 
+
 # fidCompare: Name, Zip, PreType, SufType, ExtType, PreDir, SufDir
-# -> StreetName, Zip, StreetNamePreType, StreetNamePostType, StreetNamePreDirectional, StreetNamePostDirectional
+# -> StreetName, Zip, StreetNamePreType, StreetNamePostType, ??? StreetNamePreDirectional, StreetNamePostDirectional
 # function: strip needed values; find defaults from amgScore.py
-				
-		
-print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
-print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
-print(standardize("Center Ridge, AR 72027"))
-print(standardize("9878 North Metro Parkway East, Phoenix, AZ 85051"))
-print(standardize("2896 Fairfax Street, Denver, CO 80207"))
-print(standardize("Mesa Mall, Grand Junction, CO 81501"))
-print(standardize("168 Hillside Avenue, Hartford, CT 06106"))
-print(standardize("1025 Vermont Avenue Northwest, Washington, DC 20005"))
-print(standardize("697 North Dupont Boulevard, Milford, DE 19963"))
-print(standardize("1915 North Republic De Cuba Avenue, Tampa, FL 33602"))
-print(standardize("2406 North Slappey Boulevard, Albany, GA 31701"))
-print(standardize("98-1247 Kaahumanu, Aiea, HI 96701"))
-print(standardize("103 West Main, Ute, IA 51060"))
-print(standardize("335 Deinhard Lane, Mc Call, ID 83638"))
-print(standardize("8922 South 1/2 Greenwood Avenue, Chicago, IL 60619"))
-print(standardize("239 West Monroe Street, Decatur, IN 46733"))
-print(standardize("827 Frontage Road, Agra, KS 67621"))
-print(standardize("508 West 6th Street, Lexington, KY 40508"))
-print(standardize("5103 Hollywood Avenue, Shreveport, LA 71109"))
-print(standardize("79 Power Road, Westford, MA 01886"))
-print(standardize("5105 Berwyn Road, College Park, MD 20740"))
-print(standardize("47 Broad Street, Auburn, ME 04210"))
-print(standardize("470 South Street, Ortonville, MI 48462"))
-print(standardize("404 Wilson Avenue, Faribault, MN 55021"))
-print(standardize("5933 Mc Donnell Boulevard, Hazelwood, MO 63042"))
-print(standardize("918 East Main Avenue, Lumberton, MS 39455"))
-print(standardize("107 A Street East, Poplar, MT 59255"))
-print(standardize("Village Shps Of Bnr, Banner Elk, NC 28604"))
-print(standardize("2601 State Street, Bismarck, ND 58501"))
-print(standardize("207 South Bell Street, Fremont, NE 68025"))
-print(standardize("107 State Street, Portsmouth, NH 03801"))
-print(standardize("1413 State Highway #50, Mays Landing, NJ 08330"))
-print(standardize("I-25 Highway 87, Raton, NM 87740"))
-print(standardize("516 West Goldfield Avenue, Yerington, NV 89447"))
-print(standardize("2787 Bway Way, New York, NY 10001"))
-print(standardize("1380 Bethel Road, Columbus, OH 43220"))
-print(standardize("305 Main, Fort Cobb, OK 73038"))
-print(standardize("17375 Southwest Tualatin Valley Hwy, Beaverton, OR 97006"))
+"""
+makes a list corresponding to the arguments to fidCompare, with zero if null
+input: address_dict, the output of standardize in dict form
+ouput: the relevant values of address_dict, in appropriate order
+Dict[label, word/code] -> List[word/code]
+"""
+def fid_prepare(address_dict):
+    # as per SNSDC: ["OSN", "ZIP", "SNPTC", "SNSTC", "SNEC", "SNPDC", "SNSDC"]
+    fid_order = ["StreetName", "Zip", "SteetPreTypeCode", "SteetPostTypeCode", "SNEC", "PreDirectionalCode", "PostDirectionalCode"]:
+    return [address_dict[label] if label in address_dict else 0 for label in fid_order]
+
+# print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
+# print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
+# print(standardize("Center Ridge, AR 72027"))
+# print(standardize("9878 North Metro Parkway East, Phoenix, AZ 85051"))
+# print(standardize("2896 Fairfax Street, Denver, CO 80207"))
+# print(standardize("Mesa Mall, Grand Junction, CO 81501"))
+# print(standardize("168 Hillside Avenue, Hartford, CT 06106"))
+# print(standardize("1025 Vermont Avenue Northwest, Washington, DC 20005"))
+# print(standardize("697 North Dupont Boulevard, Milford, DE 19963"))
+# print(standardize("1915 North Republic De Cuba Avenue, Tampa, FL 33602"))
+# print(standardize("2406 North Slappey Boulevard, Albany, GA 31701"))
+# print(standardize("98-1247 Kaahumanu, Aiea, HI 96701"))
+# print(standardize("103 West Main, Ute, IA 51060"))
+# print(standardize("335 Deinhard Lane, Mc Call, ID 83638"))
+# print(standardize("8922 South 1/2 Greenwood Avenue, Chicago, IL 60619"))
+# print(standardize("239 West Monroe Street, Decatur, IN 46733"))
+# print(standardize("827 Frontage Road, Agra, KS 67621"))
+# print(standardize("508 West 6th Street, Lexington, KY 40508"))
+# print(standardize("5103 Hollywood Avenue, Shreveport, LA 71109"))
+# print(standardize("79 Power Road, Westford, MA 01886"))
+# print(standardize("5105 Berwyn Road, College Park, MD 20740"))
+# print(standardize("47 Broad Street, Auburn, ME 04210"))
+# print(standardize("470 South Street, Ortonville, MI 48462"))
+# print(standardize("404 Wilson Avenue, Faribault, MN 55021"))
+# print(standardize("5933 Mc Donnell Boulevard, Hazelwood, MO 63042"))
+# print(standardize("918 East Main Avenue, Lumberton, MS 39455"))
+# print(standardize("107 A Street East, Poplar, MT 59255"))
+# print(standardize("Village Shps Of Bnr, Banner Elk, NC 28604"))
+# print(standardize("2601 State Street, Bismarck, ND 58501"))
+# print(standardize("207 South Bell Street, Fremont, NE 68025"))
+# print(standardize("107 State Street, Portsmouth, NH 03801"))
+# print(standardize("1413 State Highway #50, Mays Landing, NJ 08330"))
+# print(standardize("I-25 Highway 87, Raton, NM 87740"))
+# print(standardize("516 West Goldfield Avenue, Yerington, NV 89447"))
+# print(standardize("2787 Bway Way, New York, NY 10001"))
+# print(standardize("1380 Bethel Road, Columbus, OH 43220"))
+# print(standardize("305 Main, Fort Cobb, OK 73038"))
+# print(standardize("17375 Southwest Tualatin Valley Hwy, Beaverton, OR 97006"))
