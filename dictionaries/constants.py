@@ -778,7 +778,7 @@ EXTENSION_CODES = {
     "SPUR": 8
 }
 
-STREET_POST_TYPE_CODES = {
+STREET_TYPE_CODES = {
     "ALY": 11,
     "ALT": 12,
     "ARC": 15,
@@ -885,7 +885,7 @@ STREET_POST_TYPE_CODES = {
     "EMS": 321
 }
 
-#Frankly, I don't 
+#Frankly, I don't know what this *exactly* corresponds to
 Building_Codes = {
     "AFB": 1,
     "ARPT": 2,
