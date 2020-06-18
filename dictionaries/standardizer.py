@@ -6,7 +6,7 @@ from constants import (
     STREET_NAME_ABBREVIATIONS,
     STREET_NAME_POST_ABBREVIATIONS,
     OCCUPANCY_TYPE_ABBREVIATIONS,
-    OCCUPANCY_TYPE_CODES,
+    STREET_TYPE_CODES,
     DIRECTION_CODES
 )
 
@@ -59,13 +59,15 @@ label_dict = {
 code_dict = {
     'StreetNamePostDirectional' : DIRECTION_CODES,
     'StreetNamePreDirectional' : DIRECTION_CODES,
-    'StreetNamePostType' : OCCUPANCY_TYPE_CODES
+    'StreetNamePostType' : STREET_TYPE_CODES,
+    'StreetNamePreType' : STREET_TYPE_CODES
 }
 
 code_label_dict = {
     'StreetNamePostDirectional' : 'PostDirectionalCode',
     'StreetNamePreDirectional' : 'PreDirectionalCode',
-    'StreetNamePostType' : 'OccupancyTypeCode'
+    'StreetNamePostType' : 'SreetPostTypeCode',
+    'StreetNamePreType' : 'SreetPreTypeCode'
 }
 
 
@@ -159,8 +161,7 @@ def standardize(address, code = "a", output = "l"):
 # fidCompare: Name, Zip, PreType, SufType, ExtType, PreDir, SufDir
 # -> StreetName, Zip, StreetNamePreType, StreetNamePostType, StreetNamePreDirectional, StreetNamePostDirectional
 # function: strip needed values; find defaults from amgScore.py
-		
-		
+				
 		
 print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
 print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
