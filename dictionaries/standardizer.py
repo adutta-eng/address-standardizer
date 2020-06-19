@@ -9,14 +9,8 @@ from constants import (
     STREET_TYPE_CODES,
     DIRECTION_CODES
 )
+from word2number import w2n
 
-
-
-def abbreviate(potential_key, dictionary):
-    if potential_key in dictionary:
-        return dictionary.get(potential_key)
-    else:
-        return potential_key
 
 # USADDRESS CATEGORIES THAT WE ARE CONCERNED WITH
 # AddressNumberPrefix
@@ -32,6 +26,13 @@ def abbreviate(potential_key, dictionary):
 # SubaddressIdentifier
 # BuildingName?
 
+
+def abbreviate(potential_key, dictionary):
+    if potential_key in dictionary:
+        return dictionary.get(potential_key)
+    else:
+        return potential_key
+
 # built for usaddress.parse, not usaddress.tag
 # very preliminary, can be improved; let's talk about if we should parse replacements outside of specific labels
 # applies abbreviate to each word parsed by usaddress
@@ -40,8 +41,32 @@ def abbreviate(potential_key, dictionary):
 #        master_dict - a dict of dicts of substitutions, in format Dict[label, Dict[word, substitution]
 # output: a parsed address with words substituted when possible, in format List[(substitution, label)]
 # List[(String, String)], Dict[String, Dict[String, String]] -> List[(String, String)] 
-def clean(parsed_address, master_dict):
-    return [(abbreviate(word, master_dict.get(label)), label) if label in master_dict else (word, label) for (word, label) in parsed_address]
+# def clean(parsed_address, master_dict):
+#     return [(abbreviate(word, master_dict.get(label)), label) if label in master_dict else (word, label) for (word, label) in parsed_address]
+
+# input: tagged_address - output from usaddress.tag, in format Dict[(words, label)]
+
+def clean(tagged_address, master_dict):
+    cleaned = {}
+    for (label, words) in tagged_address.items():
+        if label in master_dict:
+            cleaned[label] = master_dict[label](words)
+            # apply to full phrase (e.g. "country road", "one hundred and one")
+            # result = master_dict[label](words)
+            # if result != words:
+            #     cleaned[label] = master_dict[label](words)
+            #     result
+            # # apply to each word individually
+            # else:
+            #     cleaned[label] = " ".join([master_dict[label](word) for word in words.split(" ")])
+        else:
+            cleaned[label] = words
+    return cleaned
+    # [(master_dict[label](word), label) if label in master_dict else (word, label) for (word, label) in parsed_address]
+# TODO: implement processing between single-word and full-phrase
+
+# examples: "one hundred eighty first", "vermont", "one hundred eighty fouth washington street"
+
 
 # TODO: change to a map from label to individualized function (?)
 label_dict = {
@@ -72,16 +97,59 @@ code_label_dict = {
 
 
 # function dict
-# processing_dict = {
-#     'StreetNamePostType' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
-#     'StreetNamePreType' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
-#     'StreetNamePreDirectional' : (lambda x : abbreviate(x, DIRECTIONAL_ABBREVIATIONS)),
-#     'StreetNamePostDirectional' : (lambda x : abbreviate(x, DIRECTIONAL_ABBREVIATIONS)),
-#     'StateName' : (lambda x : abbreviate(x, STATE_ABBREVIATIONS)),
-#     'SubaddressType' : (lambda x : abbreviate(x, OCCUPANCY_TYPE_ABBREVIATIONS)),
-#     'StreetName' : (lambda x : abbreviate(x, STATE_ABBREVIATIONS))
-# }
+processing_dict = {
+    'StreetNamePostType' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
+    'StreetNamePreType' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
+    'StreetNamePreDirectional' : (lambda x : abbreviate(x, DIRECTIONAL_ABBREVIATIONS)),
+    'StreetNamePostDirectional' : (lambda x : abbreviate(x, DIRECTIONAL_ABBREVIATIONS)),
+    'StateName' : (lambda x : abbreviate(x, STATE_ABBREVIATIONS)),
+    'SubaddressType' : (lambda x : abbreviate(x, OCCUPANCY_TYPE_ABBREVIATIONS)),
+    'StreetName' : street_process
+}
 
+"""
+standardizes and replaces the following patterns:
+    - state name to state abbreviations ("CALIFORNIA" -> "CA")
+    - number words to numbers ("TWENTY THREE" -> "23")
+      - handles hyphens, "and" ("ONE-HUNDRED-THREE", "ONE HUNDRED AND THREE")
+      - handles ordinal words ("FORTY-FIFTH" -> "45")
+    - ordinal number endings ("23RD" -> "23")
+input: words, a string separated by spaces representing a street's name, uppercased
+output: the same string, with relevant substitutions made
+String -> String
+"""
+def street_process(words):
+    processed = []
+    terms = words.split(" ")
+    number_words = ""
+    # break into [processed, [unprocessed_phrases], processed, ...] blocks
+    for word in terms:
+        # check for number words
+        if word in w2n.american_number_system or word == "and":
+            number_words = number_words + " " + word
+        else:
+            # replace any possible abbreviations first; join unreplaced chunks together
+            # can eventually make a more general "common abbreviations dict" if we want ?
+            result = abbreviate(word, STATE_ABBREVIATIONS)
+            if number_words:
+                processed.append(number_words)
+                number_words = ""
+            processed.append(result)
+    if number_words:
+        processed.append(number_words)
+    final = []
+    for elem in processed:
+        try:
+            # try converting number words to numbers - i.e. "eighty-seventh" -> 87
+            final.append(str(w2n.word_to_num(elem)))
+        except ValueError:
+            # check if there are any numeric values in the string - i.e. "37th" -> 37
+            digits = "".join([d for d in elem if d.isdigit()])
+            if digits:
+                final.append(digits)
+            else:
+                final.append(elem)
+    return " ".join(final)
 
 # label_mappings = {
 #     'AddressNumberPrefix' : 'HNPRE',
@@ -113,6 +181,7 @@ code_label_dict = {
 #     'NotAddress',
 # }
 
+
 """
 input: address, any given address
        code, which can be "a" (append), "r" (replace), or "n" (none)
@@ -120,60 +189,85 @@ input: address, any given address
 output: a list formatted like that of usaddress.parse, but with certain key words abbreviated and standardized
 String -> List[(word: String, label: String)] OR Dict[label, word]
 """
-def standardize(address, code = "a", output = "d"):
+def standardize(address, code = "a"):
     if code not in ["a", "r", "n"]:
         raise InputError("code must be a (append), r (replace), or n (none)")
-    if output not in ["l", "d"]:
-        raise InputError("output must be l (list) or d (dict)")
     # make case insensitive, apply usaddress parsing
-    parsed = usaddress.parse(address.upper())
+    tagged = usaddress.tag(address.upper())
+    tagged = tagged[0]
     # remove punctuation from results (not removed beforehand, as punctuation can affect parsing)
-    stripped = [(word.translate(str.maketrans('', '', string.punctuation)), label) for (word, label) in parsed]
+    stripped = {label: words.translate(str.maketrans('', '', string.punctuation)).strip() for (label, words) in tagged.items()}
     # apply replacements
-    substituted = clean(stripped, label_dict)
+    substituted = clean(stripped, processing_dict)
     # add codes for directions, extensions, etc.
     if code != "n":
-        if code == "a":
-            for (word, label) in substituted:
-                # confirm label is substitutable
-                if label in code_dict and label in code_label_dict:
-                    # confirm substitution is known
-                    if word in code_dict[label]:
-                        # append to the end of the list
-                        substituted.append((code_dict[label].get(word), code_label_dict[label]))
-        if code == "r":
-            for index in range(len(substituted)):
-                # confirm label is substitutable
-                word, label = substituted[index]
-                if label in code_dict and label in code_label_dict:
-                    # confirm substitution is known
-                    if word in code_dict[label]:            
-                        substituted[index] = (code_dict[label].get(word), code_label_dict[label])
-    if output == 'd':
-        result = {}
-        for (word, label) in substituted:
-            if label in result:
-                result[label] = result[label] + " " + word
-            else:
-                result[label] = word
-        return result
-    else:
-        return substituted
+        for (label, words) in substituted.items():
+            # confirm label is substitutable
+            if label in code_dict and label in code_label_dict:
+                # confirm substitution is known
+                if word in code_dict[label]:
+                    # add to dictionary
+                    substituted[(code_dict[label].get(word), code_label_dict[label])]
+                    if code == "r":
+                        substituted.pop(label)
+    return substituted
+
+# def standardize(address, code = "a", output = "d"):
+#     if code not in ["a", "r", "n"]:
+#         raise InputError("code must be a (append), r (replace), or n (none)")
+#     if output not in ["l", "d"]:
+#         raise InputError("output must be l (list) or d (dict)")
+#     # make case insensitive, apply usaddress parsing
+#     parsed = usaddress.parse(address.upper())
+#     # remove punctuation from results (not removed beforehand, as punctuation can affect parsing)
+#     stripped = [(word.translate(str.maketrans('', '', string.punctuation)), label) for (word, label) in parsed]
+#     # apply replacements
+#     substituted = clean(stripped, label_dict)
+#     # add codes for directions, extensions, etc.
+#     if code != "n":
+#         if code == "a":
+#             for (word, label) in substituted:
+#                 # confirm label is substitutable
+#                 if label in code_dict and label in code_label_dict:
+#                     # confirm substitution is known
+#                     if word in code_dict[label]:
+#                         # append to the end of the list
+#                         substituted.append((code_dict[label].get(word), code_label_dict[label]))
+#         if code == "r":
+#             for index in range(len(substituted)):
+#                 # confirm label is substitutable
+#                 word, label = substituted[index]
+#                 if label in code_dict and label in code_label_dict:
+#                     # confirm substitution is known
+#                     if word in code_dict[label]:            
+#                         substituted[index] = (code_dict[label].get(word), code_label_dict[label])
+#     if output == 'd':
+#         result = {}
+#         for (word, label) in substituted:
+#             if label in result:
+#                 result[label] = str(result[label]) + " " + str(word)
+#             else:
+#                 result[label] = word
+#         return result
+#     else:
+#         return substituted
 
 
-# fidCompare: Name, Zip, PreType, SufType, ExtType, PreDir, SufDir
-# -> StreetName, Zip, StreetNamePreType, StreetNamePostType, ??? StreetNamePreDirectional, StreetNamePostDirectional
-# function: strip needed values; find defaults from amgScore.py
-"""
-makes a list corresponding to the arguments to fidCompare, with zero if null
-input: address_dict, the output of standardize in dict form
-ouput: the relevant values of address_dict, in appropriate order
-Dict[label, word/code] -> List[word/code]
-"""
-def fid_prepare(address_dict):
-    # as per SNSDC: ["OSN", "ZIP", "SNPTC", "SNSTC", "SNEC", "SNPDC", "SNSDC"]
-    fid_order = ["StreetName", "Zip", "SteetPreTypeCode", "SteetPostTypeCode", "SNEC", "PreDirectionalCode", "PostDirectionalCode"]:
-    return [address_dict[label] if label in address_dict else 0 for label in fid_order]
+if __name__== '__main__':
+    """
+    condition allows for 'interactive' testing and development when not being used as a library
+    
+    None of this will be run when it is "imported" which is helpful/cleaner
+    """
+    #as a rule, try to avoid typing the same term over and over again, a standard input file helps with testing
+    testDataPath = r'testData.txt' # stored in current dir, for reasons...
+    with open(testDataPath, 'r') as temp:
+        data = [x[:-1] for x in temp.readlines()] #no header, 1 line per input, remove newline character
+    
+    for item in data:
+        print(standardize(item))
+        
+    print('\n\nDone!') #old habits die hard, helpful to know if something is hanging...
 
 # print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
 # print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
