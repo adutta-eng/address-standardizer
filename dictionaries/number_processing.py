@@ -15,10 +15,10 @@ the results will be ordinal numerals (i.e. "twenty first" or "21st")
 
 FUTURE/POTENTIAL IMPROVEMENTS:
 - fraction parsing (i.e. "five thirds" <-> "5/3")
-- 
+- ordinal suffix remover ("third" -> "three")
 """
 
-
+import string
 
 
 ############# word_to_num globals ################
@@ -288,19 +288,19 @@ def number_to_word(n, ordinal = False):
     for i, x in enumerate(n3):
         if x == 0:
             continue  # skip
-        digit_1 = x % 10
-        digit_2 = (x % 100)//10
-        digit_3 = (x % 1000)//100
         else:
             t = thousands[i]
-        if digit_2 == 0:
-            nw = ones[digit_1] + t + nw
-        elif digit_2 == 1:
-            nw = tens[digit_1] + t + nw
-        elif digit_2 > 1:
-            nw = twenties[digit_2] + ones[digit_1] + t + nw
-        if digit_3 > 0:
-            nw = ones[digit_3] + "hundred " + nw
+            digit_1 = x % 10
+            digit_2 = (x % 100)//10
+            digit_3 = (x % 1000)//100
+            if digit_2 == 0:
+                nw = ones[digit_1] + t + nw
+            elif digit_2 == 1:
+                nw = tens[digit_1] + t + nw
+            elif digit_2 > 1:
+                nw = twenties[digit_2] + ones[digit_1] + t + nw
+            if digit_3 > 0:
+                nw = ones[digit_3] + "hundred " + nw
     result = (nw + dec).strip()
     if ordinal:
         result = word_ordinal_suffix(ordinal)
@@ -414,12 +414,12 @@ def clean_numbers(number_sentence):
         decimal_index = split_words.index("point")
         clean_decimals = split_words[decimal_index+1:]
         ## number_system also works but decimals is more precise
-        clean_decimals = [word if word in decimals for word in clean_decimals]
+        clean_decimals = [word for word in clean_decimals if word in decimals]
         split_words = split_words[:decimal_index]
 
     # removing and, & etc.
     # TODO: refine; keep non-numeric words; potentially parse fractions
-    clean_numbers = [word if word in number_system for word in split_words]
+    clean_numbers = [word for word in split_words if word in number_system]
     # TODO: expand to decimals
     # clean_decimal_numbers = []
 
@@ -430,23 +430,24 @@ def clean_numbers(number_sentence):
 
 
 ## lazy testing:
-# print(word_to_number("two hundred ninety three million") == 293000000)
-# print(word_to_number("seventy fifth") == 75)
-# print(word_to_number("one") == 1)
-# print(word_to_number("seventeen") == 17)
-# print(word_to_number("two hundred twenty two") == 222)
-# print(word_to_number("one billion two thousand") == 1000002000)
-# print(word_to_number("one eighty five") == 185)
-# print(word_to_number("seventy hundred eighty five") == 785)
-# print(word_to_number("seventeen twelve") == 1712)
-# print(word_to_number("ten twenty three one") == 10231)
-# print(word_to_number("seventeen thousand six twenty three") == 17623)
-# print(word_to_number("seventeen thousand six hundred twenty three") == 17623) 
-# print(word_to_number("one million six twenty three thousand two fifty") == 1623250)
-# print(word_to_number("thousand and one") == 1001)
-# print(word_to_number("zero") == 0)
-# print(word_to_number("zero million") == 0)
-# print(word_to_number("twenty zero three") == 2003)
-# print(word_to_number("seventeen three nine") == 1739)
-# print(word_to_number("eight hundred five eight eight") == 800588)
-# print(word_to_number("eight hundred seventeen eight") == 800178)
+# print(word_to_number("two hundred ninety three million") == "293000000")
+# print(word_to_number("seventy fifth") == "75")
+# print(word_to_number("one") == "1")
+# print(word_to_number("seventeen") == "17")
+# print(word_to_number("two hundred twenty two") == "222")
+# print(word_to_number("one billion two thousand") == "1000002000")
+# print(word_to_number("one eighty five") == "185")
+# print(word_to_number("seventy hundred eighty five") == "7085")
+# print(word_to_number("seventeen twelve") == "1712")
+# print(word_to_number("ten twenty three one") == "10231")
+# print(word_to_number("seventeen thousand six twenty three") == "17623")
+# print(word_to_number("seventeen thousand six hundred twenty three") == "17623") 
+# print(word_to_number("one million six twenty three thousand two fifty") == "1623250")
+# print(word_to_number("thousand and one") == "1001")
+# print(word_to_number("zero") == "0")
+# print(word_to_number("zero million") == "0")
+# print(word_to_number("twenty zero three") == "2003")
+# print(word_to_number("seventeen three nine") == "1739")
+# print(word_to_number("eight hundred five eight eight") == "800588")
+# print(word_to_number("eight hundred seventeen eight") == "800178")
+# print(word_to_number("eight hundred seventy eight") == "878")
