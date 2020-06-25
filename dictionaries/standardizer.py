@@ -9,7 +9,9 @@ from constants import (
     STREET_TYPE_CODES,
     DIRECTION_CODES
 )
-from word2number import w2n
+import number_processing
+import re
+# from number_processing import number_system, word
 
 
 # USADDRESS CATEGORIES THAT WE ARE CONCERNED WITH
@@ -33,12 +35,12 @@ def abbreviate(potential_key, dictionary):
     else:
         return potential_key
 
-# built for usaddress.parse, not usaddress.tag
+# built for usaddress.tag, not usaddress.parse
 # very preliminary, can be improved; let's talk about if we should parse replacements outside of specific labels
 # applies abbreviate to each word parsed by usaddress
 
-# input: parsed_address - output from usaddress.parse, in format List[(word, label)]
-#        master_dict - a dict of dicts of substitutions, in format Dict[label, Dict[word, substitution]
+# input: parsed_address - output from usaddress.parse, in format Dict[(word, label)]
+#        master_dict - a dict of functions, in format Dict[label, function], for processing terms
 # output: a parsed address with words substituted when possible, in format List[(substitution, label)]
 # List[(String, String)], Dict[String, Dict[String, String]] -> List[(String, String)] 
 # def clean(parsed_address, master_dict):
@@ -95,6 +97,63 @@ code_label_dict = {
     'StreetNamePreType' : 'SteetPreTypeCode'
 }
 
+"""
+standardizes and replaces the following patterns:
+    - state name to state abbreviations ("CALIFORNIA" -> "CA")
+  if output = "number":
+    - number words to numbers ("TWENTY THREE" -> "23")
+      - handles hyphens, "and" ("ONE-HUNDRED-THREE", "ONE HUNDRED AND THREE")
+      - handles ordinal words ("FORTY-FIFTH" -> "45")
+    - ordinal number endings ("23RD" -> "23")
+  if output = "word":
+    - numbers to number words ("23" -> "TWENTY THREE")
+      - handles ordinals ("23RD" -> "TWENTY THREE")
+input: words, a string separated by spaces representing a street's name, uppercased
+       ordinal, a boolean (default False) indicating if outputs are numerical ordinals
+       output, either "number" (default) or "word" (indicating output format)
+output: the same string, with relevant substitutions made
+"""
+# add options: raw numericals, numericals w/ ordinal endings, words, etc.
+# port to preprocessing before standardizer (?); isolate
+# -- make into a new(?) package / file, callable outside of usaddress
+def street_process(words, ordinal = False, output = "number"):
+    processed = []
+    # terms = words.split()
+    terms = re.split('-|\s',words)
+    number_words = ""
+    for word in terms:
+        # check for number words if desired
+        # needs to be updated to handle hyphens(?)
+        if output = "number" and (word in number_processing.number_system or word == "and"):
+            number_words = number_words + " " + word
+            
+        else:
+            # replace any possible abbreviations first; join unreplaced chunks together
+            # can eventually make a more general "common abbreviations dict" if we want ?
+            if number_words:
+                processed.append(str(number_processing.word_to_number(number_words, ordinal)))
+                number_words = ""
+
+            # PROCESS NON-NUMERIC WORDS HERE
+            # if abbreviations give you numerical results this will have to be changed
+            word = abbreviate(word, STATE_ABBREVIATIONS)
+
+            # turn "101st" to "101"
+            ## BEWARE OF WORDS THAT CONTAIN NUMERIC CHARACTERS - ONLY THE NUMBER WILL REMAIN
+            digits = "".join([d for d in word if d.isdigit()])
+            if digits:
+                # turn "101" to "one hundred one"
+                if output = "word":
+                    word = number_processing.number_to_word(digits, ordinal)
+                elif not ordinal:
+                    word = digits
+
+            processed.append(word)
+    if number_words:
+        processed.append(str(number_processing.word_to_number(number_words)))
+    return " ".join(processed).upper()
+
+
 
 # function dict
 processing_dict = {
@@ -107,49 +166,6 @@ processing_dict = {
     'StreetName' : street_process
 }
 
-"""
-standardizes and replaces the following patterns:
-    - state name to state abbreviations ("CALIFORNIA" -> "CA")
-    - number words to numbers ("TWENTY THREE" -> "23")
-      - handles hyphens, "and" ("ONE-HUNDRED-THREE", "ONE HUNDRED AND THREE")
-      - handles ordinal words ("FORTY-FIFTH" -> "45")
-    - ordinal number endings ("23RD" -> "23")
-input: words, a string separated by spaces representing a street's name, uppercased
-output: the same string, with relevant substitutions made
-String -> String
-"""
-def street_process(words):
-    processed = []
-    terms = words.split(" ")
-    number_words = ""
-    # break into [processed, [unprocessed_phrases], processed, ...] blocks
-    for word in terms:
-        # check for number words
-        if word in w2n.american_number_system or word == "and":
-            number_words = number_words + " " + word
-        else:
-            # replace any possible abbreviations first; join unreplaced chunks together
-            # can eventually make a more general "common abbreviations dict" if we want ?
-            result = abbreviate(word, STATE_ABBREVIATIONS)
-            if number_words:
-                processed.append(number_words)
-                number_words = ""
-            processed.append(result)
-    if number_words:
-        processed.append(number_words)
-    final = []
-    for elem in processed:
-        try:
-            # try converting number words to numbers - i.e. "eighty-seventh" -> 87
-            final.append(str(w2n.word_to_num(elem)))
-        except ValueError:
-            # check if there are any numeric values in the string - i.e. "37th" -> 37
-            digits = "".join([d for d in elem if d.isdigit()])
-            if digits:
-                final.append(digits)
-            else:
-                final.append(elem)
-    return " ".join(final)
 
 # label_mappings = {
 #     'AddressNumberPrefix' : 'HNPRE',
@@ -185,9 +201,9 @@ def street_process(words):
 """
 input: address, any given address
        code, which can be "a" (append), "r" (replace), or "n" (none)
-       output, which can be "l" (list) or "d" (dictionary)
+     ### REMOVED ###    output, which can be "l" (list) or "d" (dictionary)
 output: a list formatted like that of usaddress.parse, but with certain key words abbreviated and standardized
-String -> List[(word: String, label: String)] OR Dict[label, word]
+String -> Dict[label: String, word: String] ### REMOVED ### List[(word: String, label: String)]
 """
 def standardize(address, code = "a"):
     if code not in ["a", "r", "n"]:
@@ -201,57 +217,18 @@ def standardize(address, code = "a"):
     substituted = clean(stripped, processing_dict)
     # add codes for directions, extensions, etc.
     if code != "n":
-        for (label, words) in substituted.items():
+        pairs = list(substituted.items())
+        for (label, word) in pairs:
             # confirm label is substitutable
             if label in code_dict and label in code_label_dict:
                 # confirm substitution is known
                 if word in code_dict[label]:
                     # add to dictionary
-                    substituted[(code_dict[label].get(word), code_label_dict[label])]
+                    substituted[code_label_dict[label]] = code_dict[label].get(word)
+                    # remove original value if requested
                     if code == "r":
                         substituted.pop(label)
     return substituted
-
-# def standardize(address, code = "a", output = "d"):
-#     if code not in ["a", "r", "n"]:
-#         raise InputError("code must be a (append), r (replace), or n (none)")
-#     if output not in ["l", "d"]:
-#         raise InputError("output must be l (list) or d (dict)")
-#     # make case insensitive, apply usaddress parsing
-#     parsed = usaddress.parse(address.upper())
-#     # remove punctuation from results (not removed beforehand, as punctuation can affect parsing)
-#     stripped = [(word.translate(str.maketrans('', '', string.punctuation)), label) for (word, label) in parsed]
-#     # apply replacements
-#     substituted = clean(stripped, label_dict)
-#     # add codes for directions, extensions, etc.
-#     if code != "n":
-#         if code == "a":
-#             for (word, label) in substituted:
-#                 # confirm label is substitutable
-#                 if label in code_dict and label in code_label_dict:
-#                     # confirm substitution is known
-#                     if word in code_dict[label]:
-#                         # append to the end of the list
-#                         substituted.append((code_dict[label].get(word), code_label_dict[label]))
-#         if code == "r":
-#             for index in range(len(substituted)):
-#                 # confirm label is substitutable
-#                 word, label = substituted[index]
-#                 if label in code_dict and label in code_label_dict:
-#                     # confirm substitution is known
-#                     if word in code_dict[label]:            
-#                         substituted[index] = (code_dict[label].get(word), code_label_dict[label])
-#     if output == 'd':
-#         result = {}
-#         for (word, label) in substituted:
-#             if label in result:
-#                 result[label] = str(result[label]) + " " + str(word)
-#             else:
-#                 result[label] = word
-#         return result
-#     else:
-#         return substituted
-
 
 if __name__== '__main__':
     """
