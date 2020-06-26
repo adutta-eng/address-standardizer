@@ -8,7 +8,6 @@ Created on Thu Jun 18 08:20:43 2020
 
 import standardizer, os, amgScore
 
-
 def loadTestData(inPath = r'testData.txt' ):
     testDataPath = inPath
     with open(testDataPath, 'r') as temp:
@@ -24,7 +23,8 @@ metadataDir = r'\\It171oafs-oa06.boc.ad.census.gov\RM_SHARED\Frames\Geospatial F
 \\It171oafs-oa06.boc.ad.census.gov\RM_SHARED\Frames\Geospatial Frame\Data\metadata\mafdata_StanCode
 """
 
-stanCodePath = os.path.join(metadataDir,'mafdata_StanCode.csv')
+# stanCodePath = os.path.join(metadataDir,'mafdata_StanCode.csv')
+stanCodePath = 'mafdata_StanCode.csv'
 with open(stanCodePath, 'r') as temp:
     stanData = [x[:-1].split('|') for x in temp.readlines()[1:]]
 

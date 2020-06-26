@@ -10,8 +10,6 @@ from constants import (
     DIRECTION_CODES
 )
 
-
-
 def abbreviate(potential_key, dictionary):
     if potential_key in dictionary:
         return dictionary.get(potential_key)
@@ -172,7 +170,7 @@ Dict[label, word/code] -> List[word/code]
 """
 def fid_prepare(address_dict):
     # as per SNSDC: ["OSN", "ZIP", "SNPTC", "SNSTC", "SNEC", "SNPDC", "SNSDC"]
-    fid_order = ["StreetName", "Zip", "SteetPreTypeCode", "SteetPostTypeCode", "SNEC", "PreDirectionalCode", "PostDirectionalCode"]:
+    fid_order = ["StreetName", "Zip", "SteetPreTypeCode", "SteetPostTypeCode", "SNEC", "PreDirectionalCode", "PostDirectionalCode"]
     return [address_dict[label] if label in address_dict else 0 for label in fid_order]
 
 # print(standardize("Homer Spit Road, Homer, Arkansas 99603"))

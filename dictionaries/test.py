@@ -1,5 +1,6 @@
 import unittest
 from dictionaries.standardizer import clean
+from dictionaries.standardizer_copy import standardize
 
 class TestStringMethods(unittest.TestCase):
     def test_upper(self):
@@ -33,7 +34,8 @@ class TestStringMethods(unittest.TestCase):
 class TestAddressMethods(unittest.TestCase):
     def test_streetname_modifiers(self):
         original = "Homer Spit Road, Homer, AK 99603"
-        clean(original)
+        standardized = standardize(original)
+        # print(standardize)
 
 if __name__ == '__main__':
     unittest.main()
