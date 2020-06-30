@@ -15,24 +15,13 @@ import re
 ## It seems that we aren't using STREET_NAME_ABBR as its own category
 STREET_NAME_POST_ABBREVIATIONS.update(STREET_NAME_ABBREVIATIONS) 
 
-# USADDRESS CATEGORIES THAT WE ARE CONCERNED WITH
-# AddressNumberPrefix
-# AddressNumber
-# AddressNumberSuffix
-# StreetNamePreModifier
-# StreetNamePreDirectional
-# StreetNamePreType
-# StreetName
-# StreetNamePostType
-# StreetNamePostDirectional
-# SubaddressType
-# SubaddressIdentifier
-# BuildingName?
-
 # replace if existent, return original otherwise
 # return dictionary[potential_key] if potential_key in dictionary else pkey
-def abbreviate(potential_key, dictionary):
-    return dictionary[potential_key] if potential_key in dictionary else potential_key
+def abbreviate(potential_key, dictionary, replacement = None):
+    if not replacement:
+        return dictionary[potential_key] if potential_key in dictionary else potential_key
+    else:
+        return dictionary[potential_key] if potential_key in dictionary else replacement
 
 # built for usaddress.tag, not usaddress.parse
 # very preliminary, can be improved; let's talk about if we should parse replacements outside of specific labels
@@ -48,7 +37,14 @@ def clean(tagged_address, master_dict):
     cleaned = {}
     for (label, words) in tagged_address.items():
         if label in master_dict:
-            cleaned[label] = master_dict[label](words)
+            result = master_dict[label](words)
+            # TODO: handle HN parsing into multiple categories
+            # if label = "HN":
+            #     cleaned["HN1"] = result[1]
+            #     cleaned["HNSEP"] = result[2]
+            #     cleaned["HN2"] = result[3]
+            #     result = result[0]
+            cleaned[label] = result
             # apply to full phrase (e.g. "country road", "one hundred and one")
             # result = master_dict[label](words)
             # if result != words:
@@ -74,14 +70,6 @@ code_dict = {
     'SNPT' : STREET_TYPE_CODES,
     'SNE' : EXTENSION_CODES
 }
-
-# code_label_dict = {
-#     'SNSD' : 'SNSDC',
-#     'SNPD' : 'SNPDC',
-#     'SNST' : 'SNSTC',
-#     'SNPT' : 'SNPTC',
-#     'SNE' : 'SNEC'
-# }
 
 """
 standardizes and replaces the following patterns:
@@ -139,8 +127,8 @@ def street_process(words, ordinal = False, output = "number"):
     return " ".join(processed).upper()
 
 
-
 # dict of functions - how each label value should be standardized
+# TODO: add HN to HN1/HNSEP/HN2 parsing
 processing_dict = {
     'SNST' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
     'SNPT' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
@@ -151,10 +139,11 @@ processing_dict = {
     'OSN' : street_process
 }
 
+
 # TODO: expand
 label_mappings = {
     'AddressNumberPrefix' : 'HNPRE',
-    'AddressNumber' : 'HN1', # requires parsing into HN2 and HNSEP
+    'AddressNumber' : 'HN', # requires parsing into HN1, HN2 and HNSEP
     'AddressNumberSuffix' : 'HNSUF',
     'StreetNamePreModifier' : 'OSN', # will concat w/ StreetName
     'StreetNamePreDirectional' : 'SNPD',
@@ -163,13 +152,18 @@ label_mappings = {
     'StreetNamePostType' : 'SNST',
     'StreetNamePostModifier' : 'SNE', # Not sure if this is the correct correspondence?
     'StreetNamePostDirectional' : 'SNSD',
-    'SubaddressType' : 'WSD',
-    'SubaddressIdentifier' : 'WSI',
+    'SubaddressType' : 'WSDESC1',
+    'SubaddressIdentifier' : 'WSID1',
     'BuildingName' : 'SI',
     'ZipCode' : 'ZIP',
     'USPSBoxType' : 'BXD',
     'USPSBoxID' : 'BXI'
 }
+
+## HN = HN1 + HNSEP + HN2
+## WS = WSDESC1 + WSID1
+
+# Other labels:
 #     'USPSBoxGroupType',
 #     'USPSBoxGroupID',
 #     'IntersectionSeparator',
@@ -205,7 +199,7 @@ def standardize(address, code = "a"):
         pairs = list(substituted.items())
         for (label, word) in pairs:
             # confirm label is substitutable
-            if label in code_dict and label in code_label_dict:
+            if label in code_dict:
                 # confirm substitution is known
                 if word in code_dict[label]:
                     # add to dictionary
@@ -214,59 +208,77 @@ def standardize(address, code = "a"):
                     # remove original value if requested
                     if code == "r":
                         substituted.pop(label)
+
+# TODO: add concatenated HN, WSN
+    # if "WSDESC1" in substituted or "WSID1" in substituted:
+    #     if "WSDESC1" not in substituted:
+    #         substituted["WS"] = substituted["WSID1"]
+    #     elif "WSID1" not in substituted:
+    #         substituted["WS"] = substituted["WSDESC1"]
+    #     else:
+    #         substituted["WS"] =" ".join([substituted["WSDESC1"], substituted["WSID1"]]
+
+# Does the full HN include HN prefix & suffix, or just HN1, HNSEP, and HN2?
+    # HN = ""
+    # for HN_component in []:
+    #     if HN_component in substituted:
+    #         HN = HN + " " + HN_component
+    # if HN:
+    #     substituted['HN'] = HN
+
     return substituted
 
-# if __name__== '__main__':
-#     """
-#     condition allows for 'interactive' testing and development when not being used as a library
+if __name__== '__main__':
+    """
+    condition allows for 'interactive' testing and development when not being used as a library
     
-#     None of this will be run when it is "imported" which is helpful/cleaner
-#     """
-#     #as a rule, try to avoid typing the same term over and over again, a standard input file helps with testing
-#     testDataPath = r'testData.txt' # stored in current dir, for reasons...
-#     with open(testDataPath, 'r') as temp:
-#         data = [x[:-1] for x in temp.readlines()] #no header, 1 line per input, remove newline character
+    None of this will be run when it is "imported" which is helpful/cleaner
+    """
+    #as a rule, try to avoid typing the same term over and over again, a standard input file helps with testing
+    testDataPath = r'testData.txt' # stored in current dir, for reasons...
+    with open(testDataPath, 'r') as temp:
+        data = [x[:-1] for x in temp.readlines()] #no header, 1 line per input, remove newline character
     
-#     for item in data:
-#         print(standardize(item))
+    for item in data:
+        print(standardize(item))
         
-#     print('\n\nDone!') #old habits die hard, helpful to know if something is hanging...
+    print('\n\nDone!') #old habits die hard, helpful to know if something is hanging...
 
-print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
-print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
-print(standardize("Center Ridge, AR 72027"))
-print(standardize("9878 North Metro Parkway East, Phoenix, AZ 85051"))
-print(standardize("2896 Fairfax Street, Denver, CO 80207"))
-print(standardize("Mesa Mall, Grand Junction, CO 81501"))
-print(standardize("168 Hillside Avenue, Hartford, CT 06106"))
-print(standardize("1025 Vermont Avenue Northwest, Washington, DC 20005"))
-print(standardize("697 North Dupont Boulevard, Milford, DE 19963"))
-print(standardize("1915 North Republic De Cuba Avenue, Tampa, FL 33602"))
-print(standardize("2406 North Slappey Boulevard, Albany, GA 31701"))
-print(standardize("98-1247 Kaahumanu, Aiea, HI 96701"))
-print(standardize("103 West Main, Ute, IA 51060"))
-print(standardize("335 Deinhard Lane, Mc Call, ID 83638"))
-print(standardize("8922 South 1/2 Greenwood Avenue, Chicago, IL 60619"))
-print(standardize("239 West Monroe Street, Decatur, IN 46733"))
-print(standardize("827 Frontage Road, Agra, KS 67621"))
-print(standardize("508 West 6th Street, Lexington, KY 40508"))
-print(standardize("5103 Hollywood Avenue, Shreveport, LA 71109"))
-print(standardize("79 Power Road, Westford, MA 01886"))
-print(standardize("5105 Berwyn Road, College Park, MD 20740"))
-print(standardize("47 Broad Street, Auburn, ME 04210"))
-print(standardize("470 South Street, Ortonville, MI 48462"))
-print(standardize("404 Wilson Avenue, Faribault, MN 55021"))
-print(standardize("5933 Mc Donnell Boulevard, Hazelwood, MO 63042"))
-print(standardize("918 East Main Avenue, Lumberton, MS 39455"))
-print(standardize("107 A Street East, Poplar, MT 59255"))
-print(standardize("Village Shps Of Bnr, Banner Elk, NC 28604"))
-print(standardize("2601 State Street, Bismarck, ND 58501"))
-print(standardize("207 South Bell Street, Fremont, NE 68025"))
-print(standardize("107 State Street, Portsmouth, NH 03801"))
-print(standardize("1413 State Highway #50, Mays Landing, NJ 08330"))
-print(standardize("I-25 Highway 87, Raton, NM 87740"))
-print(standardize("516 West Goldfield Avenue, Yerington, NV 89447"))
-print(standardize("2787 Bway Way, New York, NY 10001"))
-print(standardize("1380 Bethel Road, Columbus, OH 43220"))
-print(standardize("305 Main, Fort Cobb, OK 73038"))
-print(standardize("17375 Southwest Tualatin Valley Hwy, Beaverton, OR 97006"))
+# print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
+# print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
+# print(standardize("Center Ridge, AR 72027"))
+# print(standardize("9878 North Metro Parkway East, Phoenix, AZ 85051"))
+# print(standardize("2896 Fairfax Street, Denver, CO 80207"))
+# print(standardize("Mesa Mall, Grand Junction, CO 81501"))
+# print(standardize("168 Hillside Avenue, Hartford, CT 06106"))
+# print(standardize("1025 Vermont Avenue Northwest, Washington, DC 20005"))
+# print(standardize("697 North Dupont Boulevard, Milford, DE 19963"))
+# print(standardize("1915 North Republic De Cuba Avenue, Tampa, FL 33602"))
+# print(standardize("2406 North Slappey Boulevard, Albany, GA 31701"))
+# print(standardize("98-1247 Kaahumanu, Aiea, HI 96701"))
+# print(standardize("103 West Main, Ute, IA 51060"))
+# print(standardize("335 Deinhard Lane, Mc Call, ID 83638"))
+# print(standardize("8922 South 1/2 Greenwood Avenue, Chicago, IL 60619"))
+# print(standardize("239 West Monroe Street, Decatur, IN 46733"))
+# print(standardize("827 Frontage Road, Agra, KS 67621"))
+# print(standardize("508 West 6th Street, Lexington, KY 40508"))
+# print(standardize("5103 Hollywood Avenue, Shreveport, LA 71109"))
+# print(standardize("79 Power Road, Westford, MA 01886"))
+# print(standardize("5105 Berwyn Road, College Park, MD 20740"))
+# print(standardize("47 Broad Street, Auburn, ME 04210"))
+# print(standardize("470 South Street, Ortonville, MI 48462"))
+# print(standardize("404 Wilson Avenue, Faribault, MN 55021"))
+# print(standardize("5933 Mc Donnell Boulevard, Hazelwood, MO 63042"))
+# print(standardize("918 East Main Avenue, Lumberton, MS 39455"))
+# print(standardize("107 A Street East, Poplar, MT 59255"))
+# print(standardize("Village Shps Of Bnr, Banner Elk, NC 28604"))
+# print(standardize("2601 State Street, Bismarck, ND 58501"))
+# print(standardize("207 South Bell Street, Fremont, NE 68025"))
+# print(standardize("107 State Street, Portsmouth, NH 03801"))
+# print(standardize("1413 State Highway #50, Mays Landing, NJ 08330"))
+# print(standardize("I-25 Highway 87, Raton, NM 87740"))
+# print(standardize("516 West Goldfield Avenue, Yerington, NV 89447"))
+# print(standardize("2787 Bway Way, New York, NY 10001"))
+# print(standardize("1380 Bethel Road, Columbus, OH 43220"))
+# print(standardize("305 Main, Fort Cobb, OK 73038"))
+# print(standardize("17375 Southwest Tualatin Valley Hwy, Beaverton, OR 97006"))

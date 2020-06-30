@@ -12,8 +12,13 @@ Dict[label, word/code] -> List[word/code]
 """
 def fid_prepare(address_dict):
     # as per SNSDC: ["OSN", "ZIP", "SNPTC", "SNSTC", "SNEC", "SNPDC", "SNSDC"]
-    fid_order = ["StreetName", "Zip", "SteetPreTypeCode", "SteetPostTypeCode", "SNEC", "PreDirectionalCode", "PostDirectionalCode"]
-    return [address_dict[label] if label in address_dict else 0 for label in fid_order]
+    fid_order = ["OSN", "ZIP", "SNPTC", "SNSTC", "SNEC", "SNPDC", "SNSDC"]
+    #["StreetName", "Zip", "SteetPreTypeCode", "SteetPostTypeCode", "SNEC", "PreDirectionalCode", "PostDirectionalCode"]
+    result = [address_dict[label] if label in address_dict else 0 for label in fid_order]
+    # result[0] = str(result[0])
+    # result[1] = str(result[1])
+    #is this the appropriate way to handle this?
+    return result
 
 def fid_pair(in_list, match_list):
     return [item for pair in zip(in_list, match_list) for item in pair]

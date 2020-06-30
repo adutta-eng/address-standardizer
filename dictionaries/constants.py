@@ -885,7 +885,7 @@ STREET_TYPE_CODES = {
     "EMS": 321
 }
 
-#Frankly, I don't know what this *exactly* corresponds to
+#Frankly, I don't know when we actually use this
 Building_Codes = {
     "AFB": 1,
     "ARPT": 2,

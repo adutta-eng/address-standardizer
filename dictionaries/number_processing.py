@@ -11,8 +11,7 @@ Both functions have an optional boolean "ordinal" argument; if set to true,
 the results will be ordinal numerals (i.e. "twenty first" or "21st")
 -- the "word_ordinal_suffix" and "num_ordinal_suffix" functions will also apply
    this conversion directly
-
-
+    
 FUTURE/POTENTIAL IMPROVEMENTS:
 - fraction parsing (i.e. "five thirds" <-> "5/3")
 - ordinal suffix remover ("third" -> "three")
@@ -229,9 +228,13 @@ throws: ValueError, if number has non-numerical characters (as per isnumeric())
 def num_ordinal_suffix(number):
     if not number.isnumeric():
         raise ValueError("input must be only numeric characters 0-9")
-    suffixes = {"1" : "st", "2" : "nd", "3" : "rd"}
-    ending = number[:-1]
-    match = suffixes.get(ending) if ending in match else "th"
+    teens = {"11" : "11th", "12" : "12th", "13" : "13th"}
+    if number in {"11", "12", "13"}:
+        match = "th"
+    else:
+        suffixes = {"1" : "st", "2" : "nd", "3" : "rd"}
+        ending = number[-1]
+        match = suffixes.get(ending) if ending in suffixes else "th"
     return number + match
 
 
@@ -303,7 +306,7 @@ def number_to_word(n, ordinal = False):
                 nw = ones[digit_3] + "hundred " + nw
     result = (nw + dec).strip()
     if ordinal:
-        result = word_ordinal_suffix(ordinal)
+        result = word_ordinal_suffix(result)
     return result
 
 
@@ -429,25 +432,52 @@ def clean_numbers(number_sentence):
     return (clean_numbers, clean_decimals)
 
 
-## lazy testing:
-# print(word_to_number("two hundred ninety three million") == "293000000")
-# print(word_to_number("seventy fifth") == "75")
-# print(word_to_number("one") == "1")
-# print(word_to_number("seventeen") == "17")
-# print(word_to_number("two hundred twenty two") == "222")
-# print(word_to_number("one billion two thousand") == "1000002000")
-# print(word_to_number("one eighty five") == "185")
-# print(word_to_number("seventy hundred eighty five") == "7085")
-# print(word_to_number("seventeen twelve") == "1712")
-# print(word_to_number("ten twenty three one") == "10231")
-# print(word_to_number("seventeen thousand six twenty three") == "17623")
-# print(word_to_number("seventeen thousand six hundred twenty three") == "17623") 
-# print(word_to_number("one million six twenty three thousand two fifty") == "1623250")
-# print(word_to_number("thousand and one") == "1001")
-# print(word_to_number("zero") == "0")
-# print(word_to_number("zero million") == "0")
-# print(word_to_number("twenty zero three") == "2003")
-# print(word_to_number("seventeen three nine") == "1739")
-# print(word_to_number("eight hundred five eight eight") == "800588")
-# print(word_to_number("eight hundred seventeen eight") == "800178")
-# print(word_to_number("eight hundred seventy eight") == "878")
+# ## lazy testing:
+# def print_if_error(expression, result):
+#     if expression != result:
+#         print(expression)
+#         print(result)
+# # word_to_number, standard
+# print_if_error(word_to_number("two hundred ninety three million"), "293000000")
+# print_if_error(word_to_number("seventy fifth"), "75")
+# print_if_error(word_to_number("one"), "1")
+# print_if_error(word_to_number("seventeen"), "17")
+# print_if_error(word_to_number("two hundred twenty two"), "222")
+# print_if_error(word_to_number("one billion two thousand"), "1000002000")
+# print_if_error(word_to_number("one eighty five"), "185")
+# print_if_error(word_to_number("seventy hundred eighty five"), "7085")
+# print_if_error(word_to_number("seventeen twelve"), "1712")
+# print_if_error(word_to_number("ten twenty three one"), "10231")
+# print_if_error(word_to_number("seventeen thousand six twenty three"), "17623")
+# print_if_error(word_to_number("seventeen thousand six hundred twenty three"), "17623") 
+# print_if_error(word_to_number("one million six twenty three thousand two fifty"), "1623250")
+# print_if_error(word_to_number("thousand and one"), "1001")
+# print_if_error(word_to_number("zero"), "0")
+# print_if_error(word_to_number("zero million"), "0")
+# print_if_error(word_to_number("twenty zero three"), "2003")
+# print_if_error(word_to_number("seventeen three nine"), "1739")
+# print_if_error(word_to_number("eight hundred five eight eight"), "800588")
+# print_if_error(word_to_number("eight hundred seventeen eight"), "800178")
+# print_if_error(word_to_number("eight hundred seventy eight"), "878")
+
+# # word_to_number, ordinal
+# print_if_error(word_to_number("ten ten twenty three", ordinal = True), "101023rd")
+# print_if_error(word_to_number("ten ten twenty third", ordinal = True), "101023rd")
+# print_if_error(word_to_number("one hundred eighty seventh", ordinal = True), "187th")
+# print_if_error(word_to_number("one thousand one", ordinal = True), "1001st")
+# print_if_error(word_to_number("thirteenth", ordinal = True), "13th")
+# print_if_error(word_to_number("twenty-two", ordinal = True), "22nd")
+
+# #number_to_word, ordinal
+# print_if_error(number_to_word("101023", ordinal = True), "one hundred one thousand twenty third")
+# print_if_error(number_to_word("241", ordinal = True), "two hundred forty first")
+# print_if_error(number_to_word("15", ordinal = True), "fifteenth")
+# print_if_error(number_to_word("112", ordinal = True), "one hundred twelfth")
+# print_if_error(number_to_word("10009", ordinal = True), "ten thousand ninth")
+# print_if_error(number_to_word("12080", ordinal = True), "twelve thousand eightieth")
+# print_if_error(number_to_word("17623", ordinal = True), "seventeen thousand six hundred twenty third") 
+
+# #number_to_word
+# print_if_error(number_to_word("17623"), "seventeen thousand six hundred twenty three") 
+
+# print("done")
