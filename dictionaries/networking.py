@@ -1,4 +1,3 @@
-import numpy as np
 import networkx as nx
 import pandas as pd
 from sklearn.cluster import AffinityPropagation
@@ -9,7 +8,7 @@ df_matches: dataframe of matches [address1, address2, score]
 """
 def match_network(df_matches):
     G = nx.Graph()
-    G.add_weighted_edges_from(cleaned.values.tolist())
+    G.add_weighted_edges_from(df_matches.values.tolist())
     # if input isn't df, but something like a list of lists, the code is 
     # basically the same
     return G

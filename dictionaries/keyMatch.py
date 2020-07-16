@@ -1,11 +1,8 @@
-import standardizer
-# from standardizer import standardize
+from standardizer import standardize
 import comparator
+import networking
 from amgScore import fidComparator
 import pandas as pd
-import csv
-import networkx as nx
-from sklearn.cluster import AffinityPropagation
 
 """
 read a .txt file and turn it into a dataframe
@@ -31,7 +28,8 @@ turns a csv into a dataframe, standardizing columns
     nrows: the number of rows to take
 """
 def csv_to_frame(file_path, id_col, address_col, delimiter = ',', nrows = None):
-    result = pd.read_csv(file_path, usecols = [id_col, address_col], sep = delimiter, nrows = nrows)
+    result = pd.read_csv(file_path, usecols = [id_col, address_col], \
+        sep = delimiter, nrows = nrows)
     result = result.rename(columns = {id_col : 'ID', address_col : 'Address'})
     result = result.set_index('ID')
     return result
@@ -50,12 +48,12 @@ if you want to block on a parsed label, labels should be True!
     fidlist: flag to put the condensed values from fid_prepare in its own column
     original: flag to retain the original address as a column
 """     
-def standardize_df(input_df, labels = True, fidlist = True, original = True):
+def standardize_df(input_df, labels = True, fidlist = True, original = False):
 
     # nested function that handles individual addresses
     def clean(addr, labels, fidlist):
         try:        
-            stan = standardizer.standardize(addr)
+            stan = standardize(addr)
             if fidlist:
                 flist = {"FidList" : comparator.fid_prepare(stan)}
                 if labels:
@@ -156,57 +154,31 @@ def match(dataA, dataB, score_threshold = 800, block = None):
 
     return result
 
-"""
-transforms a dataframe of matches into a graph, with match scores as weights
-df_matches: dataframe of matches [address1, address2, score] 
-"""
-def match_network(df_matches):
-    G = nx.Graph()
-    G.add_weighted_edges_from(cleaned.values.tolist())
-    # if input isn't df, but something like a list of lists, the code is 
-    # basically the same
-    return G
 
-## if networkx.to_pandas_adjacency was *working* this wouldn't be necessary
-# important thing here is that ORDER IS PRESERVED - can index back into nodes
+### still doesn't actually support using multiple blocks yet
 """
-makes a pandas dataframe that represents the adjacency matrix of an input graph
--- columns & indices are nodes, order is preserved after AffinityPropagation
+preliminary consolidation function;
+TODO: option checking for bad inputs; impossible combinations
+TODO: actually implementing multiple blocks
+TODO: make this less ugly
 """
-def make_adjacency_matrix(network):
-    adj_matrix = pd.DataFrame(0, columns = network.nodes(), index = network.nodes())
-    for (a, b) in network.edges():
-        weight = network[a][b]['weight']
-        adj_matrix.at[a, b] = weight
-        adj_matrix.at[b, a] = weight
-    return adj_matrix
+def records_to_matches(file1, file2 = None, blocks = None, output = 'matches', score_threshold = 800):
+    frames = [file1, file2] if file2 is not None else [file1]
+    stand = []
+    for frame in frames:
+        if blocks:
+            stand.append(standardize_df(file1, labels = True))
+        else:
+            stand.append(standardize_df(file1, labels = False))
 
-"""
-uses sklearn's AffinityPropagation implementation to find exemplars in a network
-of addresses where edges are matches (can be weighted)
-    network: the overall network
-    subgraphs: if True, will run AffinityPropagation on each unique subgraph separately
-            -- False will generally lead to a single address per cluster
-returns: a mapping from each node to its cluster center/exemplar
-"""
-def disentangle(network, subgraphs = True):
-    if subgraphs:
-        graphs = [network.subgraph(c).copy() for c in \
-            nx.connected_components(network) if len(c) > 1]
+    if file2 is not None:
+        matches = match(stand[0], stand[1], block = blocks, score_threshold = 800)
     else:
-        graphs = [network] if len(network.nodes()) > 1 else []
-    final_map = {}
-    for g in graphs:
-        adj_matrix = make_adjacency_matrix(g)
-        # will break if there is only one node passed in
-        model = AffinityPropagation(affinity='precomputed').fit(adj_matrix)
+        matches = deduplicate(stand[0], block = blocks, score_threshold = 800)
 
-        ids = g.nodes()
-        # the database ids of the deduplicated records; the "centers" of the clusters
-        centers = [ids[index] for index in model.cluster_centers_indices_]
-        # the mapping of each record id to its centralized record's id
-        mapping = {ids[index]: centers[cluster] for index, cluster in enumerate(model.labels_)}
-        final_map.update(mapping)
-    # centers is just final_map.values()
-    return final_map
-
+    if output == 'matches':
+        return matches
+    elif output == 'graph':
+        return networking.match_network(matches)
+    elif output == 'clusters':
+        return networking.disentangle(networking.match_network(matches))
