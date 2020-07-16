@@ -1,26 +1,17 @@
 import numpy as np
 import networkx as nx
+import pandas as pd
 from sklearn.cluster import AffinityPropagation
 
-
-
 """
-transforms a list of matches into a graph
-matching results: dataframe or list of matches as tuples (address1, address2, score) 
-threshold: the minimum score value that counts as a match 
+transforms a dataframe of matches into a graph, with match scores as weights
+df_matches: dataframe of matches [address1, address2, score] 
 """
-def match_network(matching_results, threshold = 800):
+def match_network(df_matches):
     G = nx.Graph()
-    # df
-    if isinstance(matching_results, pd.DataFrame):
-        for index, row in matching_results.iterrows():
-            if row['FidScore'] >= threshold:
-                G.add_edge(row['Address 1'], row['Address 2'], weight = row['FidScore'])
-    # list of tuples?
-    else:
-        for (a, b, score) in matching_results:
-            if score >= threshold:
-                G.add_edge(a, b, weight = score)
+    G.add_weighted_edges_from(cleaned.values.tolist())
+    # if input isn't df, but something like a list of lists, the code is 
+    # basically the same
     return G
 
 ## if networkx.to_pandas_adjacency was *working* this wouldn't be necessary
@@ -47,14 +38,14 @@ output: a mapping from each node to its cluster center/exemplar
 """
 def disentangle(network, subgraphs = True):
     if subgraphs:
-        graphs = [network.subgraph(c).copy() for c in nx.connected_components(network)]
+        graphs = [network.subgraph(c).copy() for c in \
+            nx.connected_components(network) if len(c) > 1]
     else:
-        graphs = [network]
+        graphs = [network] if len(network.nodes()) > 1 else []
     final_map = {}
     for g in graphs:
-        if len(g.nodes()) < 2:
-            continue
         adj_matrix = make_adjacency_matrix(g)
+        # will break if there is only one node passed in
         model = AffinityPropagation(affinity='precomputed').fit(adj_matrix)
 
         ids = g.nodes()
