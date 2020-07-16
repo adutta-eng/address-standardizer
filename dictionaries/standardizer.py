@@ -15,13 +15,11 @@ import re
 ## It seems that we aren't using STREET_NAME_ABBR as its own category
 STREET_NAME_POST_ABBREVIATIONS.update(STREET_NAME_ABBREVIATIONS) 
 
-# replace if existent, return original otherwise
+# replace if existent, return original (or other replacement) otherwise
 # return dictionary[potential_key] if potential_key in dictionary else pkey
-def abbreviate(potential_key, dictionary, replacement = None):
-    if not replacement:
-        return dictionary[potential_key] if potential_key in dictionary else potential_key
-    else:
-        return dictionary[potential_key] if potential_key in dictionary else replacement
+# note: user-defined replacement can't be None
+def abbreviate(potential_key, dictionary):
+    return dictionary[potential_key] if potential_key in dictionary else potential_key
 
 # built for usaddress.tag, not usaddress.parse
 # very preliminary, can be improved; let's talk about if we should parse replacements outside of specific labels
@@ -39,12 +37,14 @@ def clean(tagged_address, master_dict):
         if label in master_dict:
             result = master_dict[label](words)
             # TODO: handle HN parsing into multiple categories
-            # if label = "HN":
-            #     cleaned["HN1"] = result[1]
-            #     cleaned["HNSEP"] = result[2]
-            #     cleaned["HN2"] = result[3]
-            #     result = result[0]
-            cleaned[label] = result
+            if label == "HN":
+                if result:
+                    cleaned["HN1"] = result[0]
+                    cleaned["HNSEP"] = result[1]
+                    cleaned["HN2"] = result[2]
+                cleaned["HN"] = words
+            else:
+                cleaned[label] = result
             # apply to full phrase (e.g. "country road", "one hundred and one")
             # result = master_dict[label](words)
             # if result != words:
@@ -127,8 +127,21 @@ def street_process(words, ordinal = False, output = "number"):
     return " ".join(processed).upper()
 
 
+def HN_process(HN):
+    # check if there is a separator
+    separator = "".join([x for x in HN if not x.isnumeric()])
+    if separator:
+        parts = HN.split(separator)
+        # fail if there isn't 1 separator or splitting doesn't work
+        if len(parts) != 2:
+            return False
+        else:
+            return (parts[0], separator, parts[1])
+    else:
+        return False
+
+
 # dict of functions - how each label value should be standardized
-# TODO: add HN to HN1/HNSEP/HN2 parsing
 processing_dict = {
     'SNST' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
     'SNPT' : (lambda x : abbreviate(x, STREET_NAME_POST_ABBREVIATIONS)),
@@ -136,16 +149,17 @@ processing_dict = {
     'SNSD' : (lambda x : abbreviate(x, DIRECTIONAL_ABBREVIATIONS)),
     'StateName' : (lambda x : abbreviate(x, STATE_ABBREVIATIONS)),
     'WSD' : (lambda x : abbreviate(x, OCCUPANCY_TYPE_ABBREVIATIONS)),
-    'OSN' : street_process
+    'OSN' : street_process,
+    'HN' : HN_process
 }
 
 
 # TODO: expand
 label_mappings = {
     'AddressNumberPrefix' : 'HNPRE',
-    'AddressNumber' : 'HN', # requires parsing into HN1, HN2 and HNSEP
+    'AddressNumber' : 'HN', # gets parsed into HN1, HN2 and HNSEP
     'AddressNumberSuffix' : 'HNSUF',
-    'StreetNamePreModifier' : 'OSN', # will concat w/ StreetName
+    'StreetNamePreModifier' : 'OSN', # concat w/ StreetName
     'StreetNamePreDirectional' : 'SNPD',
     'StreetNamePreType' : 'SNPT',
     'StreetName': 'OSN',
@@ -191,58 +205,48 @@ def standardize(address, code = "a"):
     tagged = usaddress.tag(address.upper(), label_mappings)
     tagged = tagged[0]
     # remove punctuation from results (not removed beforehand, as punctuation can affect parsing)
-    stripped = {label: words.translate(str.maketrans('', '', string.punctuation)).strip() for (label, words) in tagged.items()}
+    stripped = {label: words if label == 'HN' else \
+        words.translate(str.maketrans('', '', string.punctuation)).strip() \
+            for (label, words) in tagged.items()}
+
     # apply replacements
     substituted = clean(stripped, processing_dict)
-    # add codes for directions, extensions, etc.
+    # add codes for directions, extensions, etc. if desired
     if code != "n":
         pairs = list(substituted.items())
         for (label, word) in pairs:
-            # confirm label is substitutable
-            if label in code_dict:
-                # confirm substitution is known
-                if word in code_dict[label]:
-                    # add to dictionary
-                    # this might work just as well:
-                    substituted[label+"C"] = code_dict[label].get(word)
-                    # remove original value if requested
-                    if code == "r":
-                        substituted.pop(label)
-
-# TODO: add concatenated HN, WSN
-    # if "WSDESC1" in substituted or "WSID1" in substituted:
-    #     if "WSDESC1" not in substituted:
-    #         substituted["WS"] = substituted["WSID1"]
-    #     elif "WSID1" not in substituted:
-    #         substituted["WS"] = substituted["WSDESC1"]
-    #     else:
-    #         substituted["WS"] =" ".join([substituted["WSDESC1"], substituted["WSID1"]]
-
-# Does the full HN include HN prefix & suffix, or just HN1, HNSEP, and HN2?
-    # HN = ""
-    # for HN_component in []:
-    #     if HN_component in substituted:
-    #         HN = HN + " " + HN_component
-    # if HN:
-    #     substituted['HN'] = HN
-
+            # confirm label is substitutable and substitution is known
+            if label in code_dict and word in code_dict.get(label):
+                # add to dictionary
+                substituted[label+"C"] = code_dict[label].get(word)
+                # remove original value if requested
+                if code == "r":
+                    substituted.pop(label)
+    # add concatenated WSN
+    if "WSDESC1" in substituted or "WSID1" in substituted:
+        if "WSDESC1" not in substituted:
+            substituted["WS"] = substituted["WSID1"]
+        elif "WSID1" not in substituted:
+            substituted["WS"] = substituted["WSDESC1"]
+        else:
+            substituted["WS"] =" ".join([substituted["WSDESC1"], substituted["WSID1"]])
     return substituted
 
-if __name__== '__main__':
-    """
-    condition allows for 'interactive' testing and development when not being used as a library
+# if __name__== '__main__':
+#     """
+#     condition allows for 'interactive' testing and development when not being used as a library
     
-    None of this will be run when it is "imported" which is helpful/cleaner
-    """
-    #as a rule, try to avoid typing the same term over and over again, a standard input file helps with testing
-    testDataPath = r'testData.txt' # stored in current dir, for reasons...
-    with open(testDataPath, 'r') as temp:
-        data = [x[:-1] for x in temp.readlines()] #no header, 1 line per input, remove newline character
+#     None of this will be run when it is "imported" which is helpful/cleaner
+#     """
+#     #as a rule, try to avoid typing the same term over and over again, a standard input file helps with testing
+#     testDataPath = r'testData.txt' # stored in current dir, for reasons...
+#     with open(testDataPath, 'r') as temp:
+#         data = [x[:-1] for x in temp.readlines()] #no header, 1 line per input, remove newline character
     
-    for item in data:
-        print(standardize(item))
+#     for item in data:
+#         print(standardize(item))
         
-    print('\n\nDone!') #old habits die hard, helpful to know if something is hanging...
+#     print('\n\nDone!') #old habits die hard, helpful to know if something is hanging...
 
 # print(standardize("Homer Spit Road, Homer, Arkansas 99603"))
 # print(standardize("Lnlck Shopping Center, Anniston, AL 36201"))
