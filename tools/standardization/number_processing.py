@@ -158,9 +158,7 @@ input: words, a string separated by spaces representing a phrase (traditionally 
 output: the same string, with relevant substitutions made
 String -> String
 """
-# TODO: add options: raw numericals, numericals w/ ordinal endings, words, etc.
-# port to preprocessing before standardizer (?); isolate
-# -- make into a new(?) package / file, callable outside of usaddress
+# should this be a viable function on its own?
 def number_process(words, ordinal = False):
     processed = []
     terms = words.lower().split()
