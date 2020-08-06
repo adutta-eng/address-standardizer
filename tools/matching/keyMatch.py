@@ -34,7 +34,6 @@ def csv_to_frame(file_path, id_col, address_col, delimiter = ',', nrows = None):
     result = result.set_index('ID')
     return result
 
-#TODO: find a better way of error-catching
 """
 at least one of labels or fidlist must be True
 labels, fidlist, and original are boolean flags
@@ -48,33 +47,33 @@ if you want to block on a parsed label, labels should be True!
     fidlist: flag to put the condensed values from fid_prepare in its own column
     original: flag to retain the original address as a column
 """     
-def standardize_df(input_df, labels = True, fidlist = True, original = False):
+def standardize_df(input_df, components, labels = True, \
+    fidlist = True, original = False):
 
     # nested function that handles individual addresses
-    def clean(addr, labels, fidlist):
-        try:        
-            stan = standardize(addr)
-            if fidlist:
-                flist = {"FidList" : comparator.fid_prepare(stan)}
-                if labels:
-                    stan.update(flist)
-                    return stan
-                else:
-                    return flist
-            else:
+    def clean(addr, labels, fidlist, components):
+        stan = standardize(addr)
+        if fidlist and "ERROR" not in stan:
+            flist = {"FidList" : comparator.pull_labels(stan, components)}
+            if labels:
+                stan.update(flist)
                 return stan
-        except:
-            # maybe add an ERROR column? with specific error codes?
-            return {'ERROR' : addr}
+            else:
+                return flist
+        else:
+            return stan
+
     
-    result_df = pd.DataFrame(list(input_df['Address'].apply( \
-        clean, labels = labels, fidlist = fidlist)), index = input_df.index)
+    result_df = pd.DataFrame(list(input_df['Address'].apply(clean, \
+        labels = labels, fidlist = fidlist, components = components)), \
+            index = input_df.index)
     if original:
         result_df['Address'] = input_df['Address']
     
     return result_df
 
-# TODO: do some real error handling, ya loser
+#TODO: expand for more comparison possibilities
+# NOTE: Basically unifinished - settings are still HARDCODED
 """
 a helper function for df.apply() in deduplicate() and match()
     col_address, constant: two address records stripped by fid_prepare
@@ -83,8 +82,11 @@ returns fidCompare's score, or fails with -1
 """
 def column_matches(col_address, constant):
     try:
-        fid_list = comparator.fid_pair(col_address, constant)
-        return fidComparator(*fid_list)
+        if col_address[:6] == constant[:6]:
+            fid_list = comparator.pair_values(col_address[6:], constant[6:])
+            return fidComparator(*fid_list)
+        else:
+            return 0
     except:
         return -1
 
@@ -101,13 +103,15 @@ def deduplicate(data, score_threshold = 800, block = None):
     if block:
         dataA = data.fillna({cat: "NaN" for cat in block})
         blocked = data.groupby(block)
-        blocked_chunks = [blocked.get_group(blk)['FidList'] for blk in blocked.groups.keys()]
+        blocked_chunks = [blocked.get_group(blk)['FidList'].dropna() \
+            for blk in blocked.groups.keys()]
     else:
-        blocked_chunks = [data['FidList']]
+        blocked_chunks = [data['FidList'].dropna()]
 
     # iterate through blocks
     for b in blocked_chunks:    
         for idx, x in zip(b.index, b):
+            
             matches = b.apply(column_matches, constant = x)
             matches = pd.DataFrame(matches)
             matches['Address1'] = matches.index
@@ -136,11 +140,11 @@ def match(dataA, dataB, score_threshold = 800, block = None):
         dataB = dataB.fillna({cat: "NaN" for cat in block})        
         blockedA = dataA.groupby(block)
         blockedB = dataB.groupby(block)
-        blocked_pairs = [(blockedA.get_group(blk)['FidList'], \
-            blockedB.get_group(blk)['FidList']) for blk in \
+        blocked_pairs = [(blockedA.get_group(blk)['FidList'].dropna(), \
+            blockedB.get_group(blk)['FidList'].dropna()) for blk in \
                 blockedA.groups.keys() if blk in blockedB.groups.keys()]
     else:
-        blocked_pairs = [(dataA['FidList'], dataB['FidList'])]
+        blocked_pairs = [(dataA['FidList'].dropna(), dataB['FidList'].dropna())]
 
     # iterate through paired blocks
     for a, b in blocked_pairs:    
@@ -163,27 +167,32 @@ def match(dataA, dataB, score_threshold = 800, block = None):
 preliminary consolidation function;
 TODO: option checking for bad inputs; impossible combinations
 TODO: make this less ugly
-TODO: print/be able to read errors somewhere
 """
-def records_to_matches(file1, file2 = None, blocks = None, output = 'matches', \
-    show_errors = True, score_threshold = 800):
-    frames = (file1, file2) if file2 is not None else [file1]
+def records_to_matches(file1, file2 = None, blocks = [], output = 'matches', \
+    scoring_components = comparator.exact_matches + comparator.fid_order, \
+        show_errors = True, score_threshold = 800):
+    if output not in ["matches", "graph", "clusters"]:
+        raise InputError("output must be 'matches', 'graph', or 'clusters'")
+    
+    frames = [file1, file2] if file2 is not None else [file1]
     stand = []
     for frame in frames:
         if blocks:
-            stand.append(standardize_df(frame, labels = True))
+            stand.append(standardize_df(frame, scoring_components, labels = True))
         else:
-            stand.append(standardize_df(frame, labels = False))
+            stand.append(standardize_df(frame, scoring_components, labels = False))
 
+    errors = pd.DataFrame([], columns = ["ERROR"])
     if show_errors:
-        errors = stand[0]['ERROR']
-        if file2 is not None:
+        if 'ERROR' in stand[0].columns:
+            errors.append(stand[0]['ERROR'])
+        if file2 is not None and 'ERROR' in stand[1].columns:
             errors.append(stand[1]['ERROR'])
-        
+
     if file2 is not None:
-        matches = match(stand[0], stand[1], block = blocks, score_threshold = 800)
+        matches = match(stand[0], stand[1], block = blocks, score_threshold = score_threshold)
     else:
-        matches = deduplicate(stand[0], block = blocks, score_threshold = 800)
+        matches = deduplicate(stand[0], block = blocks, score_threshold = score_threshold)
 
     if output == 'matches':
         result = matches

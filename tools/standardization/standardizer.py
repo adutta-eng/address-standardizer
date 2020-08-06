@@ -1,4 +1,4 @@
-import usaddress
+from usaddress import tag, RepeatedLabelError
 import string
 from .constants import (
     DIRECTIONAL_ABBREVIATIONS,
@@ -36,7 +36,6 @@ def clean(tagged_address, master_dict):
     for (label, words) in tagged_address.items():
         if label in master_dict:
             result = master_dict[label](words)
-            # TODO: handle HN parsing into multiple categories
             if label == "HN":
                 if result:
                     cleaned["HN1"] = result[0]
@@ -45,19 +44,9 @@ def clean(tagged_address, master_dict):
                 cleaned["HN"] = words
             else:
                 cleaned[label] = result
-            # apply to full phrase (e.g. "country road", "one hundred and one")
-            # result = master_dict[label](words)
-            # if result != words:
-            #     cleaned[label] = master_dict[label](words)
-            #     result
-            # # apply to each word individually
-            # else:
-            #     cleaned[label] = " ".join([master_dict[label](word) for word in words.split(" ")])
         else:
             cleaned[label] = words
     return cleaned
-    # [(master_dict[label](word), label) if label in master_dict else (word, label) for (word, label) in parsed_address]
-# TODO: implement processing between single-word and full-phrase
 
 # examples: "one hundred eighty first", "vermont", "one hundred eighty fouth washington street"
 
@@ -90,6 +79,7 @@ output: the same string, with relevant substitutions made
 # add options: raw numericals, numericals w/ ordinal endings, words, etc.
 # port to preprocessing before standardizer (?); isolate
 # -- make into a new(?) package / file, callable outside of usaddress
+# TODO: implement processing between single-word and full-phrase
 def street_process(words, ordinal = False, output = "number"):
     processed = []
     # terms = words.split()
@@ -171,8 +161,16 @@ label_mappings = {
     'BuildingName' : 'SI',
     'ZipCode' : 'ZIP',
     'USPSBoxType' : 'BXD',
-    'USPSBoxID' : 'BXI'
+    'USPSBoxID' : 'BXI',
+    'PlaceName' : 'PLACE',
+    'StateName' : 'STATE',
 }
+
+label_order = ["HNPRE", "HN1", "HNSEP", "HN2", "HNSUF", "HN", 'StreetNamePreModifier', \
+"SNPD", "SNPT", "OSN", "SNST", "SNSD", 'SNE', 'WSDESC1', 'WSID1', 'SI', \
+'OccupancyType', 'OccupancyIdentifier', 'CornerOf', 'LandmarkName', 'PLACE', \
+'STATE', 'ZIP', 'USPSBoxType','USPSBoxID', 'USPSBoxGroupType', 'USPSBoxGroupID', \
+'IntersectionSeparator', 'Recipient', 'NotAddress', 'ERROR']
 
 ## HN = HN1 + HNSEP + HN2
 ## WS = WSDESC1 + WSID1
@@ -187,8 +185,6 @@ label_mappings = {
 #     'OccupancyIdentifier',
 #     'CornerOf',
 #     'LandmarkName',
-#     'PlaceName',
-#     'StateName',
 # }
 
 
@@ -202,7 +198,12 @@ def standardize(address, code = "a"):
     if code not in ["a", "r", "n"]:
         raise InputError("code must be a (append), r (replace), or n (none)")
     # make case insensitive, apply usaddress parsing
-    tagged = usaddress.tag(address.upper(), label_mappings)
+    try:
+        tagged = tag(address.upper(), label_mappings)
+    # fail if parsing fails
+    except RepeatedLabelError:
+        return {'ERROR' : address}
+
     tagged = tagged[0]
     # remove punctuation from results (not removed beforehand, as punctuation can affect parsing)
     stripped = {label: words if label == 'HN' else \
