@@ -1,6 +1,6 @@
-from standardizer import standardize
+from ..standardization.standardizer import standardize
 from collections import OrderedDict
-import amgScore
+from . import amgScore
 
 # fidCompare: Name, Zip, PreType, SufType, ExtType, PreDir, SufDir
 # -> StreetName, Zip, StreetNamePreType, StreetNamePostType, ??? StreetNamePreDirectional, StreetNamePostDirectional

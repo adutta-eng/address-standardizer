@@ -1,6 +1,6 @@
 import usaddress
 import string
-from constants import (
+from .constants import (
     DIRECTIONAL_ABBREVIATIONS,
     STATE_ABBREVIATIONS,
     STREET_NAME_ABBREVIATIONS,
@@ -10,7 +10,7 @@ from constants import (
     DIRECTION_CODES,
     EXTENSION_CODES
 )
-import number_processing
+from . import number_processing
 import re
 ## It seems that we aren't using STREET_NAME_ABBR as its own category
 STREET_NAME_POST_ABBREVIATIONS.update(STREET_NAME_ABBREVIATIONS) 

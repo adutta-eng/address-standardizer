@@ -1,7 +1,7 @@
-from standardizer import standardize
-import comparator
-import networking
-from amgScore import fidComparator
+from ..standardization.standardizer import standardize
+from . import comparator
+from . import networking
+from .amgScore import fidComparator
 import pandas as pd
 
 """
@@ -167,7 +167,7 @@ TODO: print/be able to read errors somewhere
 """
 def records_to_matches(file1, file2 = None, blocks = None, output = 'matches', \
     show_errors = True, score_threshold = 800):
-    frames = (file1, file2) if file2 is not None else (file1)
+    frames = (file1, file2) if file2 is not None else [file1]
     stand = []
     for frame in frames:
         if blocks:
