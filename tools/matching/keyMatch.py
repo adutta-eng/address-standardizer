@@ -182,7 +182,7 @@ def records_to_matches(file1, file2 = None, blocks = [], output = 'matches', \
         else:
             stand.append(standardize_df(frame, scoring_components, labels = False))
 
-    errors = []
+    errors = pd.DataFrame([], columns = ["ERROR"])
     if show_errors and 'ERROR' in stand[0].columns:
         errors.append(stand[0]['ERROR'])
         if file2 is not None and 'ERROR' in stand[1].columns:
