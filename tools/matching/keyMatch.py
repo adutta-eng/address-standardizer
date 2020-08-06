@@ -183,8 +183,9 @@ def records_to_matches(file1, file2 = None, blocks = [], output = 'matches', \
             stand.append(standardize_df(frame, scoring_components, labels = False))
 
     errors = pd.DataFrame([], columns = ["ERROR"])
-    if show_errors and 'ERROR' in stand[0].columns:
-        errors.append(stand[0]['ERROR'])
+    if show_errors:
+        if 'ERROR' in stand[0].columns:
+            errors.append(stand[0]['ERROR'])
         if file2 is not None and 'ERROR' in stand[1].columns:
             errors.append(stand[1]['ERROR'])
 
@@ -199,4 +200,4 @@ def records_to_matches(file1, file2 = None, blocks = [], output = 'matches', \
         result = networking.match_network(matches)
     elif output == 'clusters':
         result = networking.disentangle(networking.match_network(matches))
-    return (result, errors) if errors else result
+    return (result, errors) if show_errors else result
